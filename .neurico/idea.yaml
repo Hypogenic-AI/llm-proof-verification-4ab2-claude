@@ -1,0 +1,66 @@
+idea:
+  title: Convergent Chain-of-Thought Behavior in LLM Proof Verification and Its Correlation
+    with Proof Complexity
+  domain: mathematics
+  hypothesis: 'LLM proof verification accuracy under chain-of-thought (CoT) prompting
+    exhibits convergent behavior that correlates with established proof complexity
+    measures (proof length, depth, and resolution complexity). Specifically, verification
+    accuracy stabilizes after a threshold number of CoT reasoning steps, and this
+    convergence rate is predictable from the structural complexity of the proof being
+    verified.
+
+    '
+  background:
+    description: 'Large language models show promise in mathematical reasoning, yet
+      their verification capabilities remain poorly understood from a complexity-theoretic
+      perspective. Proof complexity theory provides rigorous measures of proof difficulty
+      (e.g., resolution complexity, tree-like vs. DAG-like proofs), but their relationship
+      to LLM reasoning patterns is unexplored. Understanding whether CoT prompting
+      induces systematic behavior correlated with these classical measures could reveal
+      fundamental limits and capabilities of neural proof verification.
+
+      '
+  methodology:
+    approach: Empirically measure LLM verification accuracy across synthetic proof
+      datasets with controlled complexity parameters, analyzing convergence patterns
+      in CoT reasoning chains and correlating them with proof-theoretic complexity
+      measures.
+    steps:
+    - Generate synthetic proof dataset spanning propositional logic, first-order logic,
+      and basic number theory with controlled complexity parameters (proof length,
+      depth, resolution width, number of variables)
+    - Implement iterative CoT prompting protocol with varying reasoning chain lengths
+      (1-20 steps) across multiple open-source LLMs (Llama, Mistral, Gemma families)
+    - For each proof instance, measure verification accuracy, reasoning chain convergence
+      (step at which answer stabilizes), and confidence calibration across CoT iterations
+    - 'Extract proof complexity features: syntactic measures (length, depth, width),
+      semantic measures (resolution complexity, cut-elimination steps), and structural
+      properties (tree-like vs. DAG structure)'
+    - Perform statistical analysis using regression models and information-theoretic
+      measures to quantify correlation between convergence behavior and complexity
+      metrics
+    - Identify complexity thresholds where verification accuracy degrades and analyze
+      failure modes through error categorization
+    metrics:
+    - Verification accuracy as function of CoT steps and proof complexity
+    - Convergence rate (steps to stable answer) vs. proof complexity measures
+    - Pearson/Spearman correlation coefficients between convergence metrics and proof-theoretic
+      complexity
+    - Calibration error of confidence scores across complexity classes
+    - Classification accuracy for proof validity stratified by complexity parameters
+  constraints:
+    compute: cpu_only
+    time_limit: 3600
+  metadata:
+    tags:
+    - proof-complexity
+    - chain-of-thought
+    - llm-reasoning
+    - formal-verification
+    - computational-complexity
+    - convergence-analysis
+    idea_id: convergent_chain_of_thought_be_20260309_042920_1ca2ef44
+    created_at: '2026-03-09T04:29:20.564446'
+    status: submitted
+    github_repo_name: llm-proof-verification-4ab2-claude
+    github_repo_url: https://github.com/Hypogenic-AI/llm-proof-verification-4ab2-claude
