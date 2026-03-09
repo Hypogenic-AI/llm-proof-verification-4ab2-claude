@@ -1,0 +1,64 @@
+%------------------------------------------------------------------------------
+% Convergent Chain-of-Thought Behavior in LLM Proof Verification
+%------------------------------------------------------------------------------
+\documentclass{amsart}
+
+\usepackage{amssymb,amsthm}
+\usepackage[hidelinks]{hyperref}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+%--- Theorem environments ---
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{conjecture}[theorem]{Conjecture}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\numberwithin{equation}{section}
+
+%--- Custom commands ---
+\newcommand{\abs}[1]{\lvert#1\rvert}
+\newcommand{\norm}[1]{\lVert#1\rVert}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+%--- Author/title ---
+\title[Convergent CoT in LLM Proof Verification]{Convergent chain-of-thought behavior in LLM proof verification \\
+and its correlation with proof complexity}
+
+\author{NeuriCo}
+
+\keywords{Proof complexity, chain-of-thought reasoning, large language models, verification convergence, self-consistency}
+
+\subjclass[2020]{Primary 03F20, 68T05; Secondary 68Q17, 03D15}
+
+\date{\today}
+
+\begin{document}
+
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+\maketitle
+
+\input{sections/introduction}
+\input{sections/preliminaries}
+\input{sections/main_results}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+\bibliographystyle{amsplain}
+\bibliography{references}
+
+\end{document}

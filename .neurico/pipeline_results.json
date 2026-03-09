@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "stages": {
+    "resource_finder": {
+      "success": true,
+      "completion_marker": "/workspaces/llm-proof-verification-4ab2-claude/.resource_finder_complete",
+      "outputs": {
+        "literature_review": "/workspaces/llm-proof-verification-4ab2-claude/literature_review.md",
+        "resources_catalog": "/workspaces/llm-proof-verification-4ab2-claude/resources.md",
+        "papers_dir": "/workspaces/llm-proof-verification-4ab2-claude/papers",
+        "code_dir": "/workspaces/llm-proof-verification-4ab2-claude/code"
+      },
+      "log_file": "/workspaces/llm-proof-verification-4ab2-claude/logs/resource_finder_claude.log",
+      "transcript_file": "/workspaces/llm-proof-verification-4ab2-claude/logs/resource_finder_claude_transcript.jsonl",
+      "elapsed_time": 1481.0763907432556
+    },
+    "experiment_runner": {
+      "success": true,
+      "return_code": 0,
+      "elapsed_time": 595.5299203395844,
+      "log_file": "/workspaces/llm-proof-verification-4ab2-claude/logs/execution_claude.log",
+      "transcript_file": "/workspaces/llm-proof-verification-4ab2-claude/logs/execution_claude_transcript.jsonl"
+    }
+  },
+  "work_dir": "/workspaces/llm-proof-verification-4ab2-claude"
+}

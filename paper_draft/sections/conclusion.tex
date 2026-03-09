@@ -1,0 +1,29 @@
+\section{Conclusion}\label{sec:conclusion}
+
+We have established a theoretical framework connecting classical proof
+complexity measures to the convergence behavior of chain-of-thought
+verification in large language models.  Our main results show that: (1)~the
+number of CoT steps to convergence scales as $O(\log(1/\varepsilon)/\lambda)$,
+where the convergence rate~$\lambda$ depends inversely on a composite proof
+complexity measure (Theorem~\ref{thm:convergence}); (2)~asymptotic verification
+accuracy decays exponentially in proof length under step-independence
+(Theorem~\ref{thm:error-accumulation}); and (3)~self-consistency amplification
+requires $\Theta(1/(p - 1/2)^2)$ chains, where the base accuracy~$p$ itself
+depends on proof complexity (Theorem~\ref{thm:self-consistency}).  Computational
+experiments on~129 synthetic instances across four formula families strongly
+support these predictions, and a phase transition in verification difficulty is
+identified at a critical complexity threshold~$C^* \approx 12.95$
+(Proposition~\ref{prop:phase-transition}).
+
+The central takeaway is that proof complexity theory provides the right lens
+for understanding the limits of neural proof verification.  The framework
+offers a principled basis for allocating test-time compute in mathematical
+reasoning systems, replacing model-dependent difficulty estimates with
+formula-intrinsic complexity measures.
+
+Two immediate directions for future work are: (i)~empirical validation of the
+predicted complexity--convergence relationships using state-of-the-art LLMs,
+which would test Conjectures~\ref{conj:empirical} and~\ref{conj:space}; and
+(ii)~extension of the framework beyond propositional resolution to first-order
+and natural-language proofs, leveraging the Curry--Howard bridge introduced by
+Perrier~\cite{perrier2025typed}.

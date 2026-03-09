@@ -1,0 +1,11 @@
+PDF: /workspaces/llm-proof-verification-4ab2-claude/papers/ansotegui_2012_proof_complexity_sat.pdf
+Total pages: 17
+Pages per chunk: 3
+
+Chunks:
+  ansotegui_2012_proof_complexity_sat_chunk_001.pdf: pages 1-3
+  ansotegui_2012_proof_complexity_sat_chunk_002.pdf: pages 4-6
+  ansotegui_2012_proof_complexity_sat_chunk_003.pdf: pages 7-9
+  ansotegui_2012_proof_complexity_sat_chunk_004.pdf: pages 10-12
+  ansotegui_2012_proof_complexity_sat_chunk_005.pdf: pages 13-15
+  ansotegui_2012_proof_complexity_sat_chunk_006.pdf: pages 16-17

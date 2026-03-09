@@ -1,0 +1,33 @@
+{
+  "created_at": "2026-03-09T04:29:54.423523",
+  "stages": {
+    "resource_finder": {
+      "status": "completed",
+      "started_at": "2026-03-09T04:29:54.423888",
+      "completed_at": "2026-03-09T04:54:35.501403",
+      "success": true,
+      "outputs": {
+        "literature_review": "/workspaces/llm-proof-verification-4ab2-claude/literature_review.md",
+        "resources_catalog": "/workspaces/llm-proof-verification-4ab2-claude/resources.md",
+        "papers_dir": "/workspaces/llm-proof-verification-4ab2-claude/papers",
+        "code_dir": "/workspaces/llm-proof-verification-4ab2-claude/code"
+      }
+    },
+    "experiment_runner": {
+      "status": "completed",
+      "started_at": "2026-03-09T04:54:35.501731",
+      "completed_at": "2026-03-09T05:04:31.046130",
+      "success": true,
+      "outputs": {
+        "success": true,
+        "return_code": 0,
+        "elapsed_time": 595.5299203395844,
+        "log_file": "/workspaces/llm-proof-verification-4ab2-claude/logs/execution_claude.log",
+        "transcript_file": "/workspaces/llm-proof-verification-4ab2-claude/logs/execution_claude_transcript.jsonl"
+      }
+    }
+  },
+  "current_stage": null,
+  "completed": true,
+  "completed_at": "2026-03-09T05:04:31.046919"
+}

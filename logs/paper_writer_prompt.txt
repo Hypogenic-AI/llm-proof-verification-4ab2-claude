@@ -1,0 +1,918 @@
+You are an academic paper writer for mathematics. Generate a complete AMS-style
+paper based on the mathematical results provided.
+
+════════════════════════════════════════════════════════════════════════════════
+                         IMPORTANT: BEFORE YOU START
+════════════════════════════════════════════════════════════════════════════════
+
+Before writing any content, you MUST complete these steps:
+
+1. READ THE SKILL: Review the paper-writer skill at .claude/skills/paper-writer/SKILL.md
+2. READ THE STYLE GUIDE: Study templates/paper_writing/lab_style_guide.md carefully
+3. REVIEW AMS SAMPLE: Skim paper_draft/example_paper.tex for LaTeX formatting
+   conventions ONLY — it is the official AMS journal sample file that demonstrates
+   how to use amsart theorem environments, equation formatting, list types,
+   bibliography style, and document structure. It is NOT a real paper and its
+   "content" is purely illustrative (placeholder lemmas, dummy proofs, etc.).
+   Do NOT imitate its content or narrative structure.
+4. REVIEW LANGUAGE STYLE: Browse paper_examples/ for language and exposition patterns
+5. VERIFY COMMAND TEMPLATES: Command templates (math.tex, general.tex, macros.tex)
+   are pre-copied to paper_draft/commands/
+
+CRITICAL: The AMS sample file is a LaTeX formatting reference, not a content template.
+Use it to learn \documentclass{amsart} conventions (theorem/proof environments,
+\bibliographystyle{amsplain}, author/address blocks). Write your own content
+based on the research report below.
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH REPORT
+════════════════════════════════════════════════════════════════════════════════
+
+# Convergent Chain-of-Thought Behavior in LLM Proof Verification and Its Correlation with Proof Complexity
+
+## 1. Executive Summary
+
+We investigate the relationship between classical proof complexity measures and the convergence behavior of chain-of-thought (CoT) reasoning in LLM proof verification. Using a computational framework that generates 129 synthetic proof instances across four well-studied formula families (Tseitin, Pigeonhole, Pebbling, Random k-CNF) with precisely controlled complexity parameters, we model CoT verification as a stochastic saturation process and analyze how convergence depends on proof structure.
+
+**Key findings:**
+1. **Proof complexity strongly predicts convergence rate**: A composite measure (log-length + log-width + log-depth) achieves Spearman ρ = −0.99 (p &lt; 10⁻¹¹³) with convergence rate, and R² = 0.93 in multiple regression.
+2. **Proof length is the single best predictor** of asymptotic verification accuracy (ρ = −0.77, p &lt; 10⁻²⁵), consistent with an exponential error accumulation model.
+3. **A phase transition in verification difficulty** is detected at a critical complexity threshold C* ≈ 12.95 (F-test p = 0.008), where the accuracy degradation rate steepens.
+4. **Self-consistency amplification** follows Hoeffding-type bounds, with chains needed scaling as O(1/(p − 0.5)²), connecting proof complexity to required test-time compute.
+
+**Important caveat**: These results are from a principled simulation study calibrated to published empirical data (Heimdall, Snell et al., Lightman et al.), not from direct LLM experiments. The contribution is a theoretical framework and computational validation, with specific predictions that can be tested with LLMs.
+
+## 2. Goal
+
+**Hypothesis**: LLM proof verification accuracy under CoT prompting exhibits convergent behavior that correlates with established proof complexity measures (proof length, depth, width, resolution complexity). Specifically, verification accuracy stabilizes after a threshold number of CoT reasoning steps, and this convergence rate is predictable from the structural complexity of the proof being verified.
+
+**Why this matters**: Understanding the relationship between proof structure and verification convergence would:
+- Provide a priori difficulty estimates for LLM verification tasks
+- Inform optimal test-time compute allocation (building on Snell et al., 2024)
+- Reveal whether neural proof verification faces fundamental limits aligned with classical complexity barriers
+- Bridge two previously disconnected fields: proof complexity theory and LLM reasoning
+
+**Gap filled**: Prior work (Snell et al., 2024; Shi &amp; Jin, 2025) measures difficulty using model-dependent metrics (pass@1 rate). We connect convergence to formula-intrinsic proof complexity measures, providing model-independent predictions.
+
+## 3. Data Construction
+
+### Dataset Description
+
+We generate 129 proof instances across four formula families with known proof complexity measures:
+
+| Family | Count | Description | Complexity Range |
+|--------|-------|-------------|-----------------|
+| Tseitin | 27 | Parity constraints on graphs (path, cycle, grid, expander) | Width 1–6, Length 1–40 |
+| Pigeonhole | 9 | PHP^n_{n-1} for n ∈ {3,...,11} | Width 2–10, Length 2–45 |
+| Pebbling | 18 | Pebbling game on DAGs (chain, tree, pyramid) | Width 2–8, Length 3–256 |
+| Random 3-CNF | 75 | Random formulas at ratios 2.0–5.0 | Width 1–6, Length 1–80 |
+
+### Complexity Measures Computed
+
+For each instance, we compute (or use known asymptotic values):
+- **Proof length** S(F): Number of resolution steps in an optimal proof
+- **Proof width** w(F ⊢ 0): Maximum clause width in an optimal proof
+- **Proof depth**: Height of the proof DAG
+- **Proof space**: Maximum clauses simultaneously in memory
+- **Formula width**: Maximum width of input clauses
+
+These are organized into 11 features including log-normalized versions and per-variable normalizations.
+
+### Example Instances
+
+**Instance 1**: `tseitin_cycle_10` — Tseitin formula on a 10-vertex cycle graph.
+- Variables: 10, Clauses: 160, Width: 3, Length: 20, Depth: 10, Space: 4
+- Tree-like proof exists efficiently.
+
+**Instance 2**: `php_8_7` — Pigeonhole with 8 pigeons, 7 holes.
+- Variables: 56, Clauses: 176, Width: 7, Length: 16, Depth: 56, Space: 8
+- No efficient tree-like proof (exponential lower bound).
+
+**Instance 3**: `pebbling_pyramid_6` — Pebbling on 6-level pyramid DAG.
+- Variables: 21, Clauses: 27, Width: 6, Length: 21, Depth: 12, Space: 6
+
+### Data Quality
+- All instances are unsatisfiable (except random k-CNF where satisfiability is unknown a priori)
+- Complexity measures are exact for structured families (Tseitin, PHP, Pebbling) and estimated for random k-CNF
+- No missing values; all 11 complexity features computed for every instance
+
+## 4. Experiment Description
+
+### Methodology
+
+#### High-Level Approach
+
+Since we operate under CPU-only constraints without LLM API access, we adopt a **simulation-based theoretical approach**:
+
+1. Generate proof instances with known complexity parameters
+2. Model CoT verification as a stochastic saturation process calibrated to published empirical data
+3. Derive and computationally verify theoretical bounds relating complexity to convergence
+4. Analyze correlations and phase transitions
+
+#### Why This Approach?
+
+- Direct LLM experimentation requires API access and significant compute
+- A principled model, calibrated to published empirical results, can generate testable predictions
+- This approach yields formal theorems and bounds, not just empirical correlations
+- The framework can be validated with LLMs when resources are available
+
+#### Model Calibration
+
+The verification model is calibrated to match published empirical findings:
+- **Heimdall** (Shi &amp; Jin, 2025): 94.5% single-pass → 97.5% with 64× voting, ~2.5% residual error
+- **Snell et al.** (2024): Difficulty-dependent saturation curves, 4× compute efficiency
+- **Lightman et al.** (2023): PRM accuracy scaling, widening gap with N
+
+### Verification Model
+
+At each CoT step t, verification accuracy follows a saturation curve:
+
+```
+p(t) = p_max − (p_max − p₀) · exp(−λ · t)
+```
+
+where:
+- `p₀` = initial accuracy (between 0.55 and 0.95, depending on complexity)
+- `p_max` = asymptotic accuracy ceiling (between 0.75 and 0.99)
+- `λ` = convergence rate, inversely proportional to weighted complexity
+
+The convergence rate is modeled as:
+
+```
+λ = λ_scale / (1 + Σᵢ wᵢ · Cᵢ)
+```
+
+where `Cᵢ` are log-normalized complexity features with weights:
+- log_width: 0.35 (strongest predictor, per Jarvisalo et al., 2012)
+- log_space: 0.25 (predicts practical hardness)
+- log_length: 0.25
+- log_depth: 0.15
+
+### Hyperparameters
+
+| Parameter | Value | Justification |
+|-----------|-------|---------------|
+| max_steps | 20 | Covers convergence for all instances |
+| n_trials | 200–500 | Sufficient for stable accuracy estimates |
+| λ_scale | 2.0 | Calibrated to Heimdall saturation rate |
+| noise_scale | 0.02 | Matches empirical measurement variability |
+| seed | 42 | Reproducibility |
+
+### Statistical Analysis
+
+- **Pearson and Spearman correlations** between all 11 complexity features and 3 convergence metrics
+- **Multiple linear regression** with all complexity features as predictors
+- **Phase transition detection** via piecewise linear fit with F-test
+- **Curve fitting** of saturation model to each convergence curve
+- Significance level α = 0.05 with Bonferroni correction for multiple comparisons
+
+## 5. Result Analysis
+
+### Key Finding 1: Complexity Predicts Convergence Rate (R² = 0.93)
+
+The convergence rate λ (how quickly verification accuracy stabilizes) is strongly predicted by proof complexity features. Multiple regression achieves R² = 0.9333.
+
+**Spearman rank correlations with convergence rate (all p &lt; 10⁻¹⁵):**
+
+| Feature | Spearman ρ | p-value | Significance |
+|---------|-----------|---------|--------------|
+| log_complexity_product | −0.991 | 8.6 × 10⁻¹¹⁴ | *** |
+| log_length | −0.840 | 1.3 × 10⁻³⁵ | *** |
+| log_space | −0.782 | 8.6 × 10⁻²⁸ | *** |
+| log_depth | −0.678 | 1.1 × 10⁻¹⁸ | *** |
+| log_width | −0.634 | 7.5 × 10⁻¹⁶ | *** |
+| clause_var_ratio | −0.561 | 6.2 × 10⁻¹² | *** |
+| formula_width | −0.540 | 7.1 × 10⁻¹¹ | *** |
+
+The composite measure (log_length + log_width + log_depth) is the strongest single predictor. Among individual measures, **proof length** is strongest (ρ = −0.84), followed by **proof space** (ρ = −0.78).
+
+### Key Finding 2: Accuracy Decreases with Proof Length (ρ = −0.77)
+
+Asymptotic verification accuracy (final accuracy after convergence) correlates strongly with proof length:
+- Spearman ρ = −0.766, p = 3.6 × 10⁻²⁶
+- Accuracy range: [0.880, 0.972]
+- Consistent with error accumulation model: longer proofs have more potential error sites
+
+This supports **Theorem 2**: the error floor ε(S) grows monotonically with proof length S.
+
+### Key Finding 3: Phase Transition at C* ≈ 12.95
+
+A piecewise linear model significantly outperforms a single linear fit for accuracy vs. complexity:
+- F-statistic = 7.24, p = 0.0081
+- Below C*: accuracy degrades at rate −0.0054 per unit complexity
+- Above C*: accuracy degrades at rate −0.0069 per unit complexity (29% steeper)
+
+This suggests a **critical complexity threshold** beyond which verification becomes disproportionately harder, analogous to phase transitions in satisfiability and proof complexity.
+
+### Key Finding 4: Self-Consistency Amplification Follows Hoeffding Bounds
+
+The number of independent chains N needed for majority vote to reach target accuracy 95%:
+
+| Base Accuracy p | Chains Needed | Hoeffding Prediction |
+|----------------|---------------|---------------------|
+| 0.60 | 67 | 299 (loose bound) |
+| 0.65 | 29 | 133 |
+| 0.70 | 17 | 75 |
+| 0.75 | 9 | 48 |
+| 0.80 | 7 | 33 |
+| 0.85 | 5 | 24 |
+| 0.90 | 3 | 15 |
+
+The Hoeffding bound is loose but the *ordering* is perfectly preserved (Spearman ρ = 1.0). Since base accuracy p depends on proof complexity, this gives: **more complex proofs require quadratically more self-consistency chains**.
+
+### Key Finding 5: Per-Family Analysis
+
+| Family | Avg Conv. Step | Avg Conv. Rate λ | Avg Final Accuracy |
+|--------|---------------|------------------|-------------------|
+| Tseitin | 4.9 ± 4.5 | 0.664 ± 0.259 | 0.940 ± 0.023 |
+| Pebbling | 6.2 ± 4.8 | 0.612 ± 0.272 | 0.941 ± 0.021 |
+| Random 3-CNF | 4.8 ± 4.5 | 0.570 ± 0.087 | 0.928 ± 0.016 |
+| Pigeonhole | 6.2 ± 4.6 | 0.514 ± 0.176 | 0.923 ± 0.028 |
+
+Pigeonhole formulas are hardest (lowest convergence rate and accuracy), consistent with their known exponential proof complexity lower bounds. Tseitin formulas on simple graphs are easiest, reflecting their polynomial-size proofs.
+
+### Theorem 1 (Partial): Rate-Width Relationship
+
+The direct linear relationship λ ∝ 1/w was **not confirmed** (r = −0.09, p = 0.40 for fitted λ vs. log_width). However, the composite measure including width shows the relationship holds when width is combined with other measures. This suggests width alone is insufficient—consistent with Jarvisalo et al. (2012) finding that space is a better predictor of practical hardness than width alone.
+
+### Visualization Summary
+
+Generated visualizations (in `figures/`):
+1. **convergence_curves.png**: CoT accuracy vs. steps, colored by complexity (darker = harder)
+2. **correlation_heatmap.png**: Spearman correlations between all features and metrics with significance stars
+3. **key_relationships.png**: 6 scatter plots of key feature-metric pairs with regression lines
+4. **phase_transitions.png**: Accuracy and convergence rate vs. binned complexity showing phase transition
+5. **self_consistency.png**: Majority vote accuracy vs. number of chains for varying complexity
+6. **family_comparison.png**: Bar charts comparing metrics across formula families
+
+### Limitations
+
+1. **Simulation vs. empirical data**: The high correlations (especially ρ = −0.99 for the composite measure) partly reflect the model construction, where convergence rate is directly parameterized by complexity. The specific correlation magnitudes should not be over-interpreted. What is meaningful is the *ordering* and *qualitative relationships*.
+
+2. **Model calibration**: The stochastic model is calibrated to published aggregate statistics, not instance-level LLM behavior. Instance-level LLM verification may show higher variance and different functional forms.
+
+3. **Complexity measure estimation**: For random k-CNF, proof complexity is estimated rather than exactly known. For structured families (Tseitin, PHP, Pebbling), we use asymptotic formulas which may not be tight for small instances.
+
+4. **Propositional vs. natural language**: Proof complexity measures are defined for propositional proof systems. The bridge to natural language CoT requires the mapping formalized by Perrier (2025), which is valid primarily for structured mathematical proofs.
+
+5. **Model dependence**: Convergence rates may vary across LLM architectures and scales. Our framework predicts relative difficulty ordering, but absolute values require model-specific calibration.
+
+## 6. Formal Results
+
+### Definition 1 (CoT Verification Convergence)
+For a proof instance F, the **CoT verification accuracy** at step t is:
+```
+p_F(t) = p_max(F) − (p_max(F) − p₀(F)) · exp(−λ(F) · t)
+```
+The **convergence step** τ_F(ε) is the smallest t such that |p_F(t) − p_max(F)| &lt; ε.
+
+### Theorem 1 (Complexity-Convergence Correlation)
+Let C(F) = log₂(S(F)) + log₂(w(F⊢0)) + log₂(d(F)) be the composite complexity measure. Then:
+```
+ρ(C, λ) &lt; 0 with |ρ| → 1 as model fidelity → ∞
+```
+**Computational verification**: ρ = −0.991, p &lt; 10⁻¹¹³ (n = 129 instances).
+
+### Theorem 2 (Accuracy-Length Bound)
+The asymptotic verification accuracy satisfies:
+```
+p_max(F) ≤ 1 − ε₀ · S(F)^α
+```
+for constants ε₀ &gt; 0 and α &gt; 0 depending on the verification model.
+**Computational verification**: Spearman ρ(log S, p_max) = −0.766, p &lt; 10⁻²⁵.
+
+### Theorem 3 (Self-Consistency Amplification)
+For base accuracy p &gt; 0.5, majority voting over N chains achieves:
+```
+P_maj(N) ≥ 1 − exp(−2N(p − 0.5)²)
+```
+To reach accuracy 1 − ε, one needs N ≥ ln(1/ε) / (2(p − 0.5)²).
+Since p depends on C(F), this gives: **N_required ∝ 1/(p(C) − 0.5)²**.
+**Computational verification**: Hoeffding ordering perfectly preserved (ρ = 1.0).
+
+### Proposition 1 (Phase Transition)
+There exists C* such that the accuracy degradation rate steepens by a factor ≥ 1.29 for C &gt; C*.
+**Computational verification**: C* ≈ 12.95, F-test p = 0.008.
+
+## 7. Discussion
+
+### Connection to Prior Work
+
+Our findings align with and extend several lines of prior work:
+
+1. **Snell et al. (2024)**: Their difficulty-dependent saturation curves correspond to our complexity-dependent convergence. We replace model-specific difficulty (pass@1) with formula-intrinsic complexity, enabling a priori predictions.
+
+2. **Shi &amp; Jin (2025, Heimdall)**: Their finding that verification ≠ solving difficulty is explained by our framework: verification difficulty tracks proof complexity (structural), while solving difficulty tracks search complexity (algorithmic).
+
+3. **Ben-Sasson &amp; Wigderson (2001)**: The width-size relation w(F⊢0) ≤ w(F) + O(√(n·ln S)) parallels our finding that width and length jointly predict convergence better than either alone.
+
+4. **Jarvisalo et al. (2012)**: Their finding that space predicts practical SAT solver hardness better than length or width is partially supported: space ranks 2nd (ρ = −0.78) after length (ρ = −0.84) in predicting convergence rate.
+
+5. **Ton et al. (2025)**: Their information plateau (zero info gain after unidentifiable step) corresponds to our convergence ceiling: complex proofs have lower p_max because they contain more potentially unidentifiable sub-tasks.
+
+### Implications
+
+1. **Test-time compute allocation**: Proof complexity measures can guide optimal allocation of CoT steps and self-consistency chains, potentially replacing the difficulty-estimation step in compute-optimal frameworks.
+
+2. **Verification difficulty estimation**: Before running an LLM verifier, one can compute proof complexity measures to predict expected accuracy, enabling selective human review of hard instances.
+
+3. **Fundamental limits**: The phase transition at C* suggests that beyond a critical complexity, verification accuracy cannot be efficiently improved with more CoT steps—additional structural approaches (e.g., decomposition into sub-proofs) may be needed.
+
+## 8. Open Questions
+
+1. **Empirical validation**: Do the predicted complexity-convergence relationships hold for actual LLMs (GPT-4, Claude, Llama)? Which model architectures best match the theoretical predictions?
+
+2. **Width vs. space**: Is space or width the better predictor for LLM verification difficulty? Our simulation gives length as strongest, but Jarvisalo et al.&#39;s results for SAT solvers suggest space may be more predictive for actual neural verifiers.
+
+3. **Beyond propositional proofs**: Can the framework extend to first-order logic and natural mathematical proofs? Perrier&#39;s (2025) MPS metric for typed CoT provides a bridge, but empirical validation is needed.
+
+4. **Adaptive CoT**: Can an LLM learn to allocate CoT steps adaptively based on proof structure, matching the compute-optimal strategy implied by our analysis?
+
+5. **Phase transition sharpness**: Is the transition at C* sharp (discontinuous in the thermodynamic limit) or gradual? Random k-CNF at the satisfiability threshold would provide the best test case.
+
+## 9. Conclusions
+
+We established a computational framework connecting proof complexity theory to CoT verification convergence in LLMs. The main contribution is a principled model showing that:
+
+1. Proof complexity measures (particularly their composite) strongly predict how quickly CoT verification converges
+2. Proof length governs the asymptotic accuracy ceiling through error accumulation
+3. A phase transition exists at a critical complexity threshold
+4. Self-consistency amplification costs scale quadratically with the accuracy gap, which itself depends on proof complexity
+
+These results provide testable predictions for empirical LLM verification studies and suggest that proof complexity theory offers the right lens for understanding fundamental limits of neural proof verification. The framework connects the &#34;scaling test-time compute&#34; paradigm (Snell et al., 2024) to classical complexity theory, offering a principled basis for compute allocation in mathematical reasoning systems.
+
+## 10. References
+
+1. Ben-Sasson, E., &amp; Wigderson, A. (2001). Short proofs are narrow—resolution made simple. *Journal of the ACM*, 48(2), 149–169.
+2. Jarvisalo, M., Matsliah, A., Nordstrom, J., &amp; Zivny, S. (2012). Relating proof complexity measures and practical hardness of SAT. *CP 2012*.
+3. Wei, J., Wang, X., Schuurmans, D., Bosma, M., et al. (2022). Chain-of-thought prompting elicits reasoning in large language models. *NeurIPS 2022*.
+4. Wang, X., Wei, J., Schuurmans, D., Le, Q., et al. (2022). Self-consistency improves chain of thought reasoning in language models. *ICLR 2023*.
+5. Lightman, H., Kosaraju, V., Burda, Y., Edwards, H., et al. (2023). Let&#39;s verify step by step. *ICLR 2024*.
+6. Snell, C., Lee, J., Xu, K., &amp; Kumar, A. (2024). Scaling LLM test-time compute optimally can be more effective than scaling model parameters. *arXiv:2408.03314*.
+7. Shi, Z., &amp; Jin, S. (2025). Heimdall: test-time scaling on generative verification. *arXiv:2504.10337*.
+8. Perrier, G. (2025). Typed chain-of-thought: a Curry-Howard framework for verifying LLM reasoning. *arXiv:2510.01069*.
+9. Ton, J.F., Taufiq, M., &amp; Liu, Y. (2025). Understanding chain-of-thought in LLMs through information theory. *ICML 2025*.
+10. Haken, A. (1985). The intractability of resolution. *Theoretical Computer Science*, 39, 297–308.
+
+## Appendix: Reproducibility
+
+### Environment
+- Python 3.12.8
+- NumPy, SciPy, NetworkX, Matplotlib, SymPy
+- All random seeds set to 42
+- CPU-only computation
+
+### File Structure
+```
+src/
+  proof_generator.py    # Proof instance generation (4 families, 129 instances)
+  verification_model.py # Stochastic CoT verification simulation
+  analysis.py           # Correlation analysis and visualization pipeline
+  theoretical_analysis.py # Formal theorem verification
+results/
+  analysis_results.json     # Full correlation and regression results
+  theoretical_results.json  # Theorem verification results
+figures/
+  convergence_curves.png    # CoT accuracy vs steps by complexity
+  correlation_heatmap.png   # Feature-metric correlation matrix
+  key_relationships.png     # Scatter plots of key relationships
+  phase_transitions.png     # Phase transition visualization
+  self_consistency.png      # Majority vote convergence
+  family_comparison.png     # Cross-family comparison
+```
+
+### Reproduction
+```bash
+source .venv/bin/activate
+python -m src.analysis              # Full analysis pipeline
+python -m src.theoretical_analysis  # Theoretical results
+```
+
+
+════════════════════════════════════════════════════════════════════════════════
+                            RESEARCH PLAN
+════════════════════════════════════════════════════════════════════════════════
+
+# Research Plan: Convergent CoT Behavior and Proof Complexity
+
+## Motivation &amp; Novelty Assessment
+
+### Why This Research Matters
+LLMs are increasingly used for mathematical reasoning and proof verification, yet we lack a principled understanding of *when* and *why* verification succeeds or fails. Proof complexity theory offers rigorous, formula-intrinsic measures of proof difficulty, but no existing work connects these measures to LLM verification behavior. Establishing such connections would provide: (1) a priori difficulty estimates for LLM verification tasks, (2) theoretical foundations for test-time compute allocation, and (3) insights into fundamental limits of neural proof verification.
+
+### Gap in Existing Work
+- Snell et al. (2024) show convergence depends on &#34;difficulty&#34; but use pass@1 rate (model-dependent) rather than structural proof complexity
+- Heimdall (Shi &amp; Jin, 2025) demonstrates verification ≠ solving difficulty, but doesn&#39;t identify what *does* predict verification difficulty
+- Ton et al. (2025) provide information-theoretic CoT analysis but don&#39;t connect to proof complexity
+- No work correlates CoT convergence rate with proof length, width, depth, or space
+
+### Our Novel Contribution
+We build a computational framework connecting proof complexity measures to simulated verification convergence. Specifically:
+1. Generate proof instances with precisely controlled complexity parameters
+2. Model CoT verification as a stochastic process whose convergence depends on proof structure
+3. Prove theoretical bounds relating proof complexity to convergence rates
+4. Validate predictions computationally
+
+### Experiment Justification
+- **Exp 1 (Proof Generation)**: Needed to create instances with known, controlled complexity measures
+- **Exp 2 (Convergence Simulation)**: Models how verification accuracy evolves with reasoning steps
+- **Exp 3 (Correlation Analysis)**: Tests the core hypothesis: do complexity measures predict convergence?
+- **Exp 4 (Threshold Analysis)**: Identifies phase transitions in verification difficulty
+
+## Research Question
+Does CoT verification convergence rate correlate with proof complexity measures (length, width, depth, space), and can convergence thresholds be predicted from proof structure?
+
+## Hypothesis Decomposition
+
+**H1**: Verification accuracy follows a saturation curve: acc(t) = a_max - b·exp(-c·t), where t = CoT steps
+**H2**: The convergence rate c is inversely related to proof complexity: c ∝ 1/complexity
+**H3**: Different complexity measures (length, width, depth, space) have different predictive power for convergence rate
+**H4**: There exist sharp phase transitions in verification accuracy at critical complexity thresholds
+
+## Proposed Methodology
+
+### Approach
+Since we operate under CPU-only constraints without LLM API access, we take a computational-theoretical approach:
+1. Generate synthetic proof instances with known complexity parameters
+2. Model CoT verification using a principled stochastic model calibrated to published empirical data
+3. Derive theoretical relationships between complexity and convergence
+4. Validate with computational experiments
+
+### Proof Instance Families
+1. **Tseitin formulas** on graphs: complexity controlled by graph expansion/connectivity
+2. **Pigeonhole principle** (PHP): well-studied exponential lower bounds
+3. **Pebbling formulas**: space complexity controlled by DAG structure
+4. **Random k-CNF**: tunable clause/variable ratio near satisfiability threshold
+
+### Complexity Measures Computed
+For each instance: proof length, width, depth, space (where computable), tree-like vs DAG-like ratio
+
+### Verification Model
+Model verification as: P(correct at step t) = 1 - (1-p_base) · exp(-λ(C)·t)
+where λ(C) is a convergence rate depending on proof complexity C.
+
+### Statistical Analysis Plan
+- Pearson and Spearman correlations between each complexity measure and convergence rate
+- Multiple regression with complexity features as predictors
+- ANOVA across complexity bins
+- Significance level α = 0.05 with Bonferroni correction
+
+## Expected Outcomes
+- Strong negative correlation between proof complexity and convergence rate
+- Width and space as stronger predictors than length alone
+- Phase transition at complexity threshold where convergence breaks down
+
+## Timeline (within 1 hour)
+- Planning: 10 min (this document)
+- Proof generation infrastructure: 15 min
+- Verification model + simulation: 15 min
+- Analysis + visualization: 10 min
+- Documentation (REPORT.md): 10 min
+
+## Success Criteria
+1. Generate ≥100 proof instances spanning 3+ complexity classes
+2. Demonstrate statistically significant correlation (p &lt; 0.05) between ≥1 complexity measure and convergence
+3. Identify which complexity measure is most predictive
+4. Provide theoretical justification for observed relationships
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          LITERATURE REVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+# Literature Review: Convergent Chain-of-Thought Behavior in LLM Proof Verification and Its Correlation with Proof Complexity
+
+## Research Area Overview
+
+This research investigates whether LLM proof verification accuracy under chain-of-thought (CoT) prompting exhibits convergent behavior that correlates with established proof complexity measures. The hypothesis posits that verification accuracy stabilizes after a threshold number of CoT reasoning steps, and this convergence rate is predictable from the structural complexity of the proof being verified. This topic sits at the intersection of three fields: (1) chain-of-thought reasoning in LLMs, (2) proof complexity theory, and (3) test-time compute scaling.
+
+---
+
+## Key Definitions
+
+### Chain-of-Thought (CoT) Reasoning
+
+**Chain of thought** (Wei et al., 2022): A coherent series of intermediate natural language reasoning steps that lead to the final answer. CoT prompting augments few-shot exemplars with intermediate reasoning demonstrations.
+
+**Process supervision** (Lightman et al., 2023): Providing feedback for each individual reasoning step, as opposed to outcome supervision which evaluates only the final answer. Process Reward Models (PRMs) predict correctness probability per step; solution-level score = product of all per-step probabilities.
+
+**Generative verification** (Shi &amp; Jin, 2025): Treating verification as a generative reasoning task where a verifier LLM produces a full CoT reasoning trace walking through a solution step-by-step, culminating in a binary judgment.
+
+### Proof Complexity Measures
+
+**Resolution proof system** (Ben-Sasson &amp; Wigderson, 2001): Proofs where all assertions are clauses (disjunctions of literals). Resolution derives new clauses via: (E ∨ x) and (F ∨ ¬x) → (E ∨ F).
+
+**Proof length (size)**: Number of clauses in a resolution refutation. Can be exponential in formula size.
+
+**Proof width**: Maximum number of literals in any clause appearing in the proof. Always ≤ n (number of variables).
+
+**Proof depth**: Height of the proof DAG. For tree-like proofs, depth equals space complexity.
+
+**Proof space** (Jarvisalo et al., 2012): Maximum number of clauses simultaneously in memory during proof execution. Hierarchy: space ≥ width ≥ log(length).
+
+**Resolution complexity**: The minimum proof length over all valid resolution proofs of a given formula.
+
+### Convergence Concepts
+
+**Test-time compute scaling** (Snell et al., 2024): Allocating additional computation at inference time via search and/or verification. The compute-optimal strategy depends on both problem difficulty and compute budget.
+
+**Information gain** (Ton et al., 2025): Conditional mutual information I(Y; X^M_j | X^M_{j-1}) measuring how much each CoT step contributes toward the correct answer. Drops to zero at the point of reasoning failure.
+
+---
+
+## Key Papers
+
+### Paper 1: Chain-of-Thought Prompting Elicits Reasoning in Large Language Models
+- **Authors**: Wei, Wang, Schuurmans, Bosma, et al.
+- **Year**: 2022 (arXiv: 2201.11903)
+- **Main Results**: CoT is an emergent ability of model scale (≥100B parameters). Provides largest gains on multi-step problems; single-step problems see negligible benefit. PaLM 540B + CoT: GSM8K 56.9% (vs. 17.9% standard). Performance across exemplar orderings shows low variance (±0.4%), suggesting stability/convergence.
+- **Proof Techniques**: Ablation studies showing reasoning content (not just extra tokens) drives improvement.
+- **Relevance**: Establishes the foundational CoT framework. The finding that CoT benefits scale with problem complexity directly supports investigating correlation with proof complexity measures.
+
+### Paper 2: Let&#39;s Verify Step by Step
+- **Authors**: Lightman, Kosaraju, Burda, Edwards, et al. (OpenAI)
+- **Year**: 2023 (arXiv: 2305.20050)
+- **Main Results**: PRMs outperform ORMs at all N in best-of-N evaluation; gap widens with N. Best-of-1860: PRM 78.2% vs. ORM 72.4% vs. majority voting 69.6%. PRM curve continues rising with no saturation up to N=1860; ORM plateaus earlier. Active learning yields 2.6× data efficiency improvement.
+- **Relevance**: Demonstrates that step-level verification provides increasingly better discrimination with more candidates—a form of convergent refinement. The widening PRM-ORM gap suggests process supervision captures proof structure information that outcome supervision misses.
+
+### Paper 3: Scaling LLM Test-Time Compute Optimally
+- **Authors**: Snell, Lee, Xu, Kumar (UC Berkeley, Google DeepMind)
+- **Year**: 2024 (arXiv: 2408.03314)
+- **Main Results**: Compute-optimal scaling achieves 4× improvement over best-of-N baselines. Accuracy as a function of test-time compute follows saturation curves that depend on difficulty: easy problems saturate fast, medium problems continue improving, hard problems barely move. The optimal strategy is difficulty-dependent.
+- **Proof Techniques**: Formal framework defining compute-optimal scaling strategy as argmax over hyperparameters. Difficulty (pass@1 rate) serves as sufficient statistic.
+- **Relevance**: **Core evidence for convergence hypothesis.** Demonstrates verification accuracy convergence that correlates with problem difficulty. The saturation curves provide the template for what we predict: convergence rate correlating with proof complexity.
+
+### Paper 4: Short Proofs Are Narrow—Resolution Made Simple
+- **Authors**: Ben-Sasson, Wigderson
+- **Year**: 2001
+- **Main Results**: Width-size relation for general resolution: w(F ⊢ 0) ≤ w(F) + O(√(n·ln S(F))). Equivalently: S(F) = exp(Ω((w(F⊢0) - w(F))² / n)). Width is characterized by expansion of compatible sensitive functions (Theorem 5.9). High expansion ⟹ large width ⟹ large size.
+- **Proof Techniques**: Restriction-based induction; subadditive complexity measures; expansion arguments.
+- **Relevance**: **Foundational proof complexity reference.** Provides the formal measures (width, length, depth) whose correlation with CoT convergence we hypothesize. The width-size tradeoff may predict the number of CoT steps needed for verification convergence.
+
+### Paper 5: Relating Proof Complexity Measures and Practical Hardness of SAT
+- **Authors**: Jarvisalo, Matsliah, Nordstrom, Zivny
+- **Year**: 2012
+- **Main Results**: Resolution space complexity correlates most strongly with practical CDCL solver hardness, more so than length or width. Formulas with identical length (O(n)) and width (O(1)) but varying space show orders-of-magnitude differences in solver time tracking space. Hierarchy: space ≥ width ≥ log(length).
+- **Relevance**: Establishes that different proof complexity measures predict different aspects of difficulty. Space may be a better predictor of LLM verification difficulty than length or width alone.
+
+### Paper 6: Heimdall: Test-Time Scaling on Generative Verification
+- **Authors**: Shi, Jin (ByteDance Seed)
+- **Year**: 2025 (arXiv: 2504.10337)
+- **Main Results**: Verification accuracy converges: 94.5% single-pass → 97.5% with 64× majority voting (AIME2024). Clear saturation curve with ~2.5% residual error representing systematic model bias. **Problem-solving difficulty does NOT necessarily correlate with verification difficulty**—wide dispersion in the scatter plot.
+- **Relevance**: **Key finding for our hypothesis.** Provides direct evidence of convergent verification behavior with saturation. The decorrelation between solving difficulty and verification difficulty suggests verification difficulty may correlate with different structural properties (possibly proof complexity measures).
+
+### Paper 7: Typed Chain-of-Thought: A Curry-Howard Framework for Verifying LLM Reasoning
+- **Authors**: Perrier
+- **Year**: 2025 (arXiv: 2510.01069)
+- **Main Results**: Maps CoT to typed proof terms via Curry-Howard correspondence. Strict-certified runs achieve 91.6% accuracy vs. 42.4% for rejected runs. Identifies a &#34;typed reasoning gradient&#34; with 4 levels from unstructured narrative to complete typed proofs. Minimal Path Size (MPS) provides a graded notion of proof depth.
+- **Relevance**: **Directly formalizes CoT as proof.** Provides the theoretical bridge between CoT reasoning and proof complexity. The MPS metric enables measuring proof depth of CoT chains. The 4-level gradient connects proof completeness to verification success.
+
+### Paper 8: Understanding Chain-of-Thought in LLMs through Information Theory
+- **Authors**: Ton, Taufiq, Liu
+- **Year**: 2025 (arXiv: 2411.11984, ICML 2025)
+- **Main Results**: Once a model encounters an unidentifiable sub-task, every subsequent CoT step adds zero information about the correct answer (Theorem 3.3). Information gain provides per-step error detection: positive gain = useful step, zero/negative = divergence. Creates sharp phase transition at the point of failure.
+- **Relevance**: Provides information-theoretic characterization of CoT convergence/divergence. The &#34;information plateau&#34; after an unidentifiable step formalizes when convergence fails. The framework for measuring per-step contribution connects to proof step complexity.
+
+### Paper 9: Self-Consistency Improves Chain of Thought Reasoning
+- **Authors**: Wang, Wei, Schuurmans, Le, et al.
+- **Year**: 2022 (arXiv: 2203.11171)
+- **Main Results**: Sampling multiple CoT reasoning paths and marginalizing over them (majority voting on final answers) significantly improves accuracy. Works across arithmetic, commonsense, and symbolic reasoning tasks.
+- **Relevance**: Self-consistency is a convergence mechanism—accuracy improves with more samples. The rate of convergence may correlate with the complexity of the underlying reasoning.
+
+---
+
+## Known Results (Prerequisite Theorems)
+
+### Proof Complexity Results
+
+| Result | Statement | Source | Used For |
+|--------|-----------|--------|----------|
+| Width-Size (tree-like) | S_T(F) ≥ 2^{w(F⊢0) - w(F)} | Ben-Sasson &amp; Wigderson 2001 | Lower bounding proof length from width |
+| Width-Size (general) | S(F) ≥ exp(Ω((w(F⊢0) - w(F))²/n)) | Ben-Sasson &amp; Wigderson 2001 | Relating width to exponential size lower bounds |
+| Space-Width | Space ≥ Width | Atserias &amp; Dalmau 2008 | Establishing complexity hierarchy |
+| Measure hierarchy | space ≥ width ≥ log(length) | Multiple authors | Ordering complexity measures |
+| Pebbling-Space | S_T(Peb_G) = 2^{Ω(P(G))} | Ben-Sasson &amp; Wigderson 2001 | Connecting graph structure to proof complexity |
+
+### CoT and Verification Results
+
+| Result | Statement | Source | Used For |
+|--------|-----------|--------|----------|
+| CoT emergence | CoT effective only at ≥100B parameters | Wei et al. 2022 | Establishing model scale requirements |
+| PRM &gt; ORM | Process supervision outperforms outcome supervision, gap grows with N | Lightman et al. 2023 | Justifying step-level verification |
+| Compute-optimal scaling | 4× efficiency via difficulty-conditioned strategy | Snell et al. 2024 | Framework for convergence analysis |
+| Information plateau | Zero information gain after unidentifiable step | Ton et al. 2025 | Theoretical bound on CoT convergence |
+| Verification saturation | ~97.5% ceiling with 64× majority voting | Shi &amp; Jin 2025 | Empirical convergence bound |
+
+---
+
+## Proof Techniques in the Literature
+
+### Technique 1: Restriction-Based Induction
+Used in Ben-Sasson &amp; Wigderson (2001) for width-size relations. Set variable to 0/1, reduce to smaller formula, apply induction. Could be adapted to analyze how fixing proof structure parameters affects CoT verification difficulty.
+
+### Technique 2: Expansion Arguments
+Width lower bounds via expansion of compatible sensitive functions. High expansion → large width → large size. Potential analog: high &#34;reasoning expansion&#34; → more CoT steps needed → slower verification convergence.
+
+### Technique 3: Difficulty Binning and Compute-Optimal Curves
+Used in Snell et al. (2024). Bin problems by pass@1 rate, fit saturation curves per bin, derive compute-optimal strategy. Directly applicable: bin proofs by complexity measures, fit convergence curves, test correlation.
+
+### Technique 4: Information-Theoretic Step Analysis
+Used in Ton et al. (2025). Measure conditional mutual information per CoT step. Can be applied to measure information gain per verification step as a function of proof complexity.
+
+### Technique 5: Type-Theoretic Verification
+Used in Perrier (2025). Map CoT to typed proof terms, type-check each step. Provides a formal mechanism for measuring proof structure in CoT.
+
+---
+
+## Related Open Problems
+
+1. **Does verification difficulty correlate with proof complexity?** Heimdall (2025) shows solving difficulty ≠ verification difficulty. Our hypothesis: verification difficulty correlates with proof complexity measures instead.
+2. **What is the optimal proof complexity measure for predicting CoT convergence?** Length, width, depth, or space? Jarvisalo et al. (2012) suggest space may be most informative.
+3. **Is the convergence threshold predictable?** Snell et al. (2024) show difficulty-dependent saturation. Can we predict the saturation point from proof structure?
+4. **Can type-theoretic frameworks scale beyond arithmetic?** Perrier (2025) works on GSM8K. Extension to formal mathematical proofs is open.
+
+---
+
+## Gaps and Opportunities
+
+1. **No existing work directly correlates CoT convergence with proof complexity measures.** All convergence results use model-specific difficulty (pass@1 rate) rather than structural proof complexity.
+2. **Verification difficulty ≠ solving difficulty** (Heimdall). This gap suggests verification has its own complexity measure—potentially related to proof structure.
+3. **Information-theoretic analysis hasn&#39;t been connected to proof complexity.** Ton et al.&#39;s information gain framework could be mapped to proof step utility.
+4. **Type-theoretic CoT verification is nascent.** Perrier&#39;s MPS metric provides proof depth but hasn&#39;t been correlated with convergence behavior.
+
+---
+
+## Recommendations for Proof Strategy
+
+### Recommended Approach
+1. **Empirical convergence measurement:** Use multiple LLMs to verify proofs of known complexity (resolution proofs, Tseitin formulas, pigeonhole instances). Measure accuracy as a function of CoT steps.
+2. **Complexity measure correlation:** Compute proof length, width, depth, and space for test instances. Fit convergence curves and test correlation with each measure.
+3. **Difficulty binning:** Adapt Snell et al.&#39;s framework—bin proofs by structural complexity, measure convergence rate per bin.
+
+### Key Lemmas to Establish
+1. Formal definition of &#34;verification convergence rate&#34; for a given proof
+2. Mapping between proof complexity measures and CoT step requirements
+3. Bounds on convergence threshold as a function of proof structure
+
+### Potential Obstacles
+- Proof complexity measures are defined for propositional proof systems; natural language CoT operates in a different formalism
+- LLM verification may depend on training data distribution rather than structural complexity
+- The convergence threshold may be model-dependent, complicating universal statements
+
+### Computational Support
+- Use SymPy for generating proofs of controlled complexity
+- Use NetworkX for graph-based proof structures (Tseitin formulas, pebbling)
+- Statistical analysis with NumPy/SciPy for correlation testing
+
+
+════════════════════════════════════════════════════════════════════════════════
+                          PAPER REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+Generate a complete mathematics paper with the following structure:
+
+1. TITLE
+   - Clear, specific, informative
+   - Should convey the main result or the mathematical objects studied
+   - Mathematical convention: concise and precise
+
+2. AUTHOR
+   - Use this exact author line: NeuriCo
+
+3. ABSTRACT (150-250 words)
+   - State the problem or question investigated
+   - Summarize the main results (theorem statements in words)
+   - Mention proof techniques used
+   - Note any computational verification
+
+4. INTRODUCTION
+   - Mathematical problem and motivation
+   - History and context of the problem
+   - Summary of known results (with citations)
+   - Statement of main contributions (informal preview)
+   - Paper organization
+
+5. PRELIMINARIES
+   - Notation and conventions
+   - Definitions needed for the paper
+   - Prerequisite results (stated with citations, not reproved)
+   - This section ensures the paper is self-contained
+
+6. MAIN RESULTS
+   - Formal theorem statements
+   - Complete proofs
+   - Supporting lemmas and propositions with proofs
+   - Examples illustrating the results
+   - Remarks connecting to other areas
+
+7. DISCUSSION
+   - Implications of the results
+   - Connections to related problems
+   - Open questions and conjectures
+   - Possible generalizations
+
+8. CONCLUSION
+   - Summary of contributions
+   - Future directions
+
+9. REFERENCES
+   - BibTeX format
+   - All cited papers and textbooks
+
+════════════════════════════════════════════════════════════════════════════════
+                          OUTPUT FORMAT
+════════════════════════════════════════════════════════════════════════════════
+
+Create a MODULAR LaTeX project with the following directory structure:
+
+paper_draft/
+├── main.tex              # Main file that imports all sections
+├── references.bib        # BibTeX references
+├── sections/
+│   ├── abstract.tex      # Abstract content
+│   ├── introduction.tex  # Introduction section
+│   ├── preliminaries.tex # Definitions, notation, prerequisites
+│   ├── main_results.tex  # Theorems and proofs
+│   ├── discussion.tex    # Discussion and open questions
+│   └── conclusion.tex    # Conclusion section
+├── figures/              # Directory for any generated figures
+└── appendix/             # Directory for appendix sections (if needed)
+
+INSTRUCTIONS:
+1. First, create the directory structure above (mkdir -p paper_draft/sections paper_draft/figures paper_draft/appendix)
+2. Write main.tex using the AMS document class with proper theorem environments:
+
+   \documentclass{amsart}
+   \usepackage{amsmath,amssymb,amsthm}
+   \usepackage[hidelinks]{hyperref}
+   \usepackage{graphicx}
+   \usepackage{enumitem}
+
+   % Theorem environments
+   \newtheorem{theorem}{Theorem}[section]
+   \newtheorem{lemma}[theorem]{Lemma}
+   \newtheorem{proposition}[theorem]{Proposition}
+   \newtheorem{corollary}[theorem]{Corollary}
+   \newtheorem{conjecture}[theorem]{Conjecture}
+
+   \theoremstyle{definition}
+   \newtheorem{definition}[theorem]{Definition}
+   \newtheorem{example}[theorem]{Example}
+
+   \theoremstyle{remark}
+   \newtheorem{remark}[theorem]{Remark}
+
+   % Import command files (if they exist)
+   \InputIfFileExists{commands/math}{}{}
+   \InputIfFileExists{commands/general}{}{}
+   \InputIfFileExists{commands/macros}{}{}
+
+   % Bibliography style
+   \bibliographystyle{amsplain}
+
+   \author{NeuriCo}
+
+   - Use \input{sections/...} to include each section
+   - Use \bibliography{references} for references
+3. Write each section file with COMPLETE content (no placeholders)
+4. Each section file should include its \section{} command
+5. Write references.bib with all citations in BibTeX format
+6. After writing all files, compile the paper:
+   cd paper_draft && pdflatex -interaction=nonstopmode main.tex && bibtex main && pdflatex -interaction=nonstopmode main.tex && pdflatex -interaction=nonstopmode main.tex
+
+NOTE ON DOCUMENT CLASS:
+- Use \documentclass{amsart} (NOT \documentclass{article} with \usepackage{style})
+- The amsart class is part of the standard LaTeX distribution — no .sty file needed
+- It provides proper formatting for mathematical papers: theorem numbering,
+  proof environments, AMS math fonts, and standard math journal layout
+
+This modular structure allows humans to easily:
+- Edit individual sections without navigating a large file
+- Track changes per section
+- Reuse sections across different paper versions
+
+════════════════════════════════════════════════════════════════════════════════
+                          QUALITY REQUIREMENTS
+════════════════════════════════════════════════════════════════════════════════
+
+- Academic mathematical tone throughout
+- Every theorem must have a complete proof
+- All definitions must be precise and unambiguous
+- Proper citations using \cite{} commands
+- NO placeholder text - every section must have real content
+- The paper MUST compile without errors
+- If compilation fails, debug and fix the LaTeX errors
+
+════════════════════════════════════════════════════════════════════════════════
+                       MATHEMATICAL WRITING STYLE
+════════════════════════════════════════════════════════════════════════════════
+
+Follow these conventions for mathematical papers:
+
+1. LANGUAGE STYLE:
+   - Use "we" for collaborative exposition: "We prove", "We show", "We define"
+   - Be precise and direct: state results clearly before proving them
+   - Prefer plain language: "We now prove..." over "We shall henceforth demonstrate..."
+   - Use the present tense for mathematical facts: "Theorem 1 shows..."
+   - Avoid vague language: instead of "clearly" or "obviously", explain why
+
+2. INTRODUCTION STRUCTURE:
+   - Context and motivation (why this problem matters)
+   - History (what's known, with citations)
+   - Statement of results (informal but precise)
+   - Proof techniques (brief overview of methods)
+   - Paper organization (roadmap)
+
+3. THEOREM ENVIRONMENTS:
+   Use proper LaTeX theorem environments:
+   \begin{theorem}\label{thm:main}
+     Let $G$ be a graph with $n$ vertices. Then...
+   \end{theorem}
+
+   \begin{proof}
+     We proceed by induction on $n$. ...
+   \end{proof}
+
+4. DEFINITIONS:
+   \begin{definition}\label{def:widget}
+     A \emph{widget} is a pair $(X, \tau)$ where...
+   \end{definition}
+
+   - Italicize the term being defined using \emph{}
+   - State all conditions explicitly
+   - Give examples immediately after non-trivial definitions
+
+5. PROOF STRUCTURE:
+   - Begin with proof strategy: "The proof proceeds in two steps..."
+   - Number or label key claims within proofs
+   - Use \qedhere for proofs ending in displayed equations
+   - Signal transitions: "It remains to show...", "We now verify..."
+
+6. NOTATION CONVENTIONS:
+   - Define all notation in Preliminaries
+   - Use standard notation: $\mathbb{R}$, $\mathbb{Z}$, $\mathbb{N}$
+   - Use \coloneqq or := for definitions
+   - Be consistent: one symbol = one meaning throughout
+
+7. MATHEMATICAL FORMATTING:
+   - Displayed equations for important formulas: \[ ... \]
+   - Inline math for brief expressions: $...$
+   - Use align environment for multi-line equations
+   - Number only equations that are referenced later
+
+8. REFERENCES AND CITATIONS:
+   - Cite prior results when used: "By \cite{author2024}..."
+   - Distinguish between "Theorem 3 of \cite{...}" and your own results
+   - Include both classic references and recent work
+
+9. EXAMPLES AND COUNTEREXAMPLES:
+   - Illustrate each major result with a concrete example
+   - Show tightness: counterexamples demonstrating necessity of hypotheses
+   - Use \begin{example} ... \end{example} environment
+
+10. FIGURES (if applicable):
+    - Diagrams for geometric arguments
+    - Graphs or plots from computational verification
+    - Commutative diagrams for algebraic results
+    - Use TikZ or include pre-generated figures
+
+════════════════════════════════════════════════════════════════════════════════
+                          WORKFLOW: REVIEW AND REFLECT
+════════════════════════════════════════════════════════════════════════════════
+
+Before calling finish, you MUST complete these review steps:
+
+1. REVIEW RESOURCES (at the start):
+   - Read .claude/skills/paper-writer/SKILL.md for detailed guidance
+   - Study templates/paper_writing/lab_style_guide.md for style conventions
+   - Skim paper_draft/example_paper.tex for amsart LaTeX conventions only
+   - Browse paper_examples/ for language patterns (if available)
+
+2. SELF-REFLECTION (before finishing):
+   After writing all sections, review your work against these criteria:
+
+   MATHEMATICAL CONTENT CHECK:
+   - [ ] Every theorem has a complete, rigorous proof
+   - [ ] All definitions are precise with explicit quantifiers
+   - [ ] Examples illustrate major results
+   - [ ] Counterexamples show necessity of hypotheses where applicable
+   - [ ] Notation is consistent throughout
+
+   FORMATTING CHECK:
+   - [ ] Theorem environments (\begin{theorem}...\end{theorem}) used properly
+   - [ ] Proof environments (\begin{proof}...\end{proof}) used for all proofs
+   - [ ] Is hyperref package included for clickable references?
+   - [ ] Labels and cross-references work correctly
+   - [ ] Bibliography entries are complete
+
+   STRUCTURE CHECK:
+   - [ ] Introduction previews main results clearly
+   - [ ] Preliminaries section makes the paper self-contained
+   - [ ] Results are ordered logically (lemmas before theorems that use them)
+   - [ ] Does the paper compile without errors?
+
+3. FIX ISSUES:
+   - Address any issues found in the self-reflection
+   - Re-compile and verify the PDF looks correct
+
+Only after completing this review should you consider the paper finished.

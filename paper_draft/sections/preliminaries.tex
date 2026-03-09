@@ -1,0 +1,116 @@
+\section{Preliminaries}\label{sec:prelim}
+
+We recall the relevant notions from propositional proof complexity and
+chain-of-thought reasoning, and fix notation used throughout the paper.
+
+\subsection{Propositional proof complexity}\label{sec:prelim-proof}
+
+A \emph{literal} is a Boolean variable $x$ or its negation $\bar{x}$.  A
+\emph{clause} is a disjunction of literals.  A \emph{conjunctive normal form}
+(CNF) formula $F$ is a conjunction of clauses.  We write $\operatorname{Var}(F)$
+for the set of variables appearing in~$F$ and set $n = \abs{\operatorname{Var}(F)}$.
+
+\begin{definition}[Resolution proof system]\label{def:resolution}
+The \emph{resolution} rule derives a new clause from two parent clauses sharing
+a complementary literal:
+\[
+\frac{C \vee x \qquad D \vee \bar{x}}{C \vee D}\,.
+\]
+A \emph{resolution refutation} (or \emph{proof}) of an unsatisfiable CNF
+formula~$F$ is a sequence of clauses $C_1, C_2, \ldots, C_S$ such that each
+$C_i$ is either a clause of~$F$ or is derived from two earlier clauses by the
+resolution rule, and $C_S$ is the empty clause~$\bot$.
+\end{definition}
+
+\begin{definition}[Proof complexity measures]\label{def:complexity-measures}
+Let $\pi = (C_1, \ldots, C_S)$ be a resolution refutation of~$F$.
+\begin{enumerate}[label=(\roman*)]
+\item The \emph{length} (or \emph{size}) of $\pi$ is $S(\pi) = S$.
+\item The \emph{width} of~$\pi$ is
+  $w(\pi) = \max_{1 \le i \le S} \abs{C_i}$, where $\abs{C_i}$ denotes the
+  number of literals in~$C_i$.
+\item The \emph{depth} of~$\pi$ is the height of its derivation DAG.
+\item The \emph{space} of~$\pi$ is the maximum number of clauses that must be
+  simultaneously retained in memory when executing the proof in a
+  sequential blackboard model.
+\end{enumerate}
+We write $S(F)$, $w(F \vdash \bot)$, $d(F)$, and $\operatorname{Sp}(F)$ for
+the respective minima over all refutations of~$F$.
+\end{definition}
+
+The following classical results relate these measures.
+
+\begin{theorem}[Ben-Sasson and Wigderson~{\cite{bensasson2001short}}]
+\label{thm:bsw}
+For any unsatisfiable CNF formula~$F$ on $n$~variables with initial clause
+width $w(F)$,
+\[
+w(F \vdash \bot) \le w(F) + O\!\left(\sqrt{n \ln S(F)}\right).
+\]
+Equivalently, $S(F) \ge \exp\!\left(\Omega\!\left(\frac{(w(F \vdash \bot) -
+w(F))^2}{n}\right)\right)$.
+\end{theorem}
+
+We use the following well-known formula families as test instances.
+
+\begin{definition}[Tseitin formulas]\label{def:tseitin}
+Let $G = (V, E)$ be a connected graph and $\sigma \colon V \to \{0,1\}$ a
+labeling with $\sum_{v \in V} \sigma(v) \equiv 1 \pmod{2}$.  The
+\emph{Tseitin formula} $\operatorname{Ts}(G, \sigma)$ introduces a variable
+$x_e$ for each edge $e \in E$ and, for each vertex $v$, a set of clauses
+encoding $\bigoplus_{e \ni v} x_e = \sigma(v)$.  These formulas are always
+unsatisfiable because the total parity constraint is odd.
+\end{definition}
+
+\begin{definition}[Pigeonhole formulas]\label{def:php}
+The \emph{pigeonhole principle} formula $\operatorname{PHP}^m_n$ (with $m > n$)
+has variables $p_{i,j}$ for $1 \le i \le m$, $1 \le j \le n$, with clauses
+encoding ``each pigeon maps to at least one hole'' and ``no two pigeons share a
+hole.''  Haken~\cite{haken1985intractability} proved that
+$S(\operatorname{PHP}^{n+1}_n) = 2^{\Omega(n)}$.
+\end{definition}
+
+\begin{definition}[Pebbling formulas]\label{def:pebbling}
+Let $G = (V, E)$ be a directed acyclic graph with a unique sink~$t$.  The
+\emph{pebbling formula} $\operatorname{Peb}(G)$ has a variable $x_v$ for each
+$v \in V$, with clauses encoding: (i)~source vertices are true; (ii)~if all
+predecessors of $v$ are true then $v$ is true; and (iii)~the sink is false.
+The space complexity of $\operatorname{Peb}(G)$ equals the black pebbling
+number of~$G$, plus a constant~\cite{bensasson2001short}.
+\end{definition}
+
+\subsection{Chain-of-thought verification}\label{sec:prelim-cot}
+
+We model chain-of-thought verification as a sequential stochastic process.  An
+LLM verifier receives a proof and processes it over discrete \emph{reasoning
+steps} $t = 1, 2, \ldots$  At each step, the verifier updates its assessment
+of the proof's correctness.
+
+\begin{definition}[Process reward model]\label{def:prm}
+A \emph{process reward model} (PRM) assigns a correctness probability
+$r_t \in [0,1]$ to each step~$t$ of a solution or proof trace.  The
+solution-level score is $\prod_{t=1}^T r_t$, where $T$ is the total number of
+steps~\cite{lightman2023lets}.
+\end{definition}
+
+\begin{definition}[Self-consistency]\label{def:self-consistency}
+Given $N$ independent CoT verification traces for a proof~$F$, each
+producing a binary judgment $Y_i \in \{0,1\}$ with
+$\Pr[Y_i = 1] = p$, the \emph{self-consistency} (majority vote) decision is
+\[
+\hat{Y}_N = \mathbf{1}\!\left[\sum_{i=1}^N Y_i > N/2\right].
+\]
+When $p > 1/2$, the majority vote accuracy exceeds~$p$ and converges to~$1$ as
+$N \to \infty$~\cite{wang2022self}.
+\end{definition}
+
+\subsection{Notation}\label{sec:notation}
+
+Throughout the paper, $F$ denotes an unsatisfiable CNF formula, $S(F)$ its
+minimum resolution proof length, $w(F \vdash \bot)$ its minimum proof width,
+$d(F)$ its minimum proof depth, and $\operatorname{Sp}(F)$ its minimum proof
+space.  We write $\ln$ for the natural logarithm and $\log$ for the base-$2$
+logarithm.  The notation $f = O(g)$, $f = \Omega(g)$, and $f = \Theta(g)$
+carries the standard meaning.  The Spearman rank correlation coefficient is
+denoted~$\rho$.  All probabilities are with respect to the randomness in the
+CoT generation process.

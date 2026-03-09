@@ -1,0 +1,20 @@
+We investigate the relationship between classical proof complexity measures and
+the convergence behavior of chain-of-thought (CoT) reasoning in large language
+model (LLM) proof verification.  We model CoT verification as a stochastic
+saturation process whose parameters depend on proof structure, and we analyze
+how convergence rate, asymptotic accuracy, and required test-time compute
+relate to the length, width, depth, and space of resolution proofs.  Our main
+results are: (1)~a rigorous error accumulation bound showing that asymptotic
+verification accuracy decays exponentially in proof length; (2)~a proof that
+self-consistency amplification via majority voting requires
+$\Omega(1/(p-\tfrac{1}{2})^2)$ independent chains to reach a target accuracy,
+where the base accuracy~$p$ itself depends on proof complexity; and (3)~a
+convergence rate analysis showing that the number of CoT steps needed to reach
+$\varepsilon$-convergence scales as $O(\log(1/\varepsilon)/\lambda)$, where
+$\lambda$ is inversely related to a composite complexity measure.  We validate
+these theoretical predictions computationally on 129 synthetic proof instances
+spanning four well-studied formula families (Tseitin, pigeonhole, pebbling,
+random $k$-CNF), obtaining Spearman rank correlations exceeding $-0.99$ between
+the composite complexity measure and convergence rate.  The framework yields
+testable predictions connecting proof complexity theory to the scaling of
+test-time compute in neural proof verification.

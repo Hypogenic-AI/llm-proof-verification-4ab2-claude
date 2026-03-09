@@ -1,0 +1,62 @@
+\section{Introduction}\label{sec:intro}
+
+Large language models have demonstrated remarkable mathematical reasoning
+capabilities when augmented with chain-of-thought (CoT) prompting, in which a
+model produces a sequence of intermediate reasoning steps before arriving at a
+final answer~\cite{wei2022chain}.  A natural application is \emph{proof
+verification}: given a purported proof of a mathematical statement, a model
+checks correctness step by step.  Recent work shows that verification accuracy
+can be substantially improved by generating multiple CoT traces and aggregating
+their judgments via majority voting---a strategy known as
+\emph{self-consistency}~\cite{wang2022self}---and that the returns from
+additional test-time compute follow difficulty-dependent saturation
+curves~\cite{snell2024scaling, shi2025heimdall}.
+
+A central question, however, remains open: \emph{what structural properties of
+a proof determine the difficulty of verifying it?}  Snell et
+al.~\cite{snell2024scaling} characterize difficulty using the model-dependent
+pass@1 rate, while Shi and Jin~\cite{shi2025heimdall} demonstrate that
+verification difficulty does not simply track problem-solving difficulty.
+Neither framework identifies proof-intrinsic features that predict verification
+convergence a priori.
+
+Proof complexity theory offers a rich collection of such features.  The
+\emph{length} (number of inference steps), \emph{width} (maximum clause size),
+\emph{depth} (height of the proof DAG), and \emph{space} (maximum
+simultaneously stored clauses) of resolution proofs are well studied and
+exhibit deep interrelationships~\cite{bensasson2001short, haken1985intractability}.
+Jarvisa\"alo et al.~\cite{jarvisalo2012relating} showed that space complexity
+correlates with practical SAT solver running time more strongly than length or
+width.  Yet no prior work connects these measures to LLM verification behavior.
+
+In this paper we bridge proof complexity theory and CoT verification
+convergence.  We model CoT verification as a stochastic saturation process
+whose parameters are governed by proof structure, and we prove rigorous bounds
+relating proof complexity to verification accuracy and required compute.  Our
+contributions are as follows.
+
+\begin{itemize}[leftmargin=*,itemsep=2pt,topsep=4pt]
+\item We formalize CoT verification convergence as an exponential saturation
+  process and prove that the convergence step scales as
+  $O(\log(1/\varepsilon)/\lambda)$, where $\lambda$ depends inversely on a
+  composite proof complexity measure (Theorem~\ref{thm:convergence}).
+\item We establish an error accumulation bound showing that asymptotic
+  verification accuracy decays exponentially in proof length under a
+  step-independence assumption (Theorem~\ref{thm:error-accumulation}).
+\item We prove that self-consistency amplification via majority voting requires
+  $\Theta(1/(p - \tfrac{1}{2})^2)$ independent chains, connecting proof
+  complexity to test-time compute scaling
+  (Theorem~\ref{thm:self-consistency}).
+\item We validate these predictions computationally on 129~synthetic proof
+  instances across four formula families, obtaining strong rank correlations
+  ($\rho = -0.99$) between the composite complexity measure and convergence
+  rate.  We identify a phase transition in verification difficulty at a critical
+  complexity threshold (Proposition~\ref{prop:phase-transition}).
+\end{itemize}
+
+The paper is organized as follows.  Section~\ref{sec:prelim} introduces the
+necessary background from proof complexity theory and CoT reasoning.
+Section~\ref{sec:main} presents our main results with complete proofs and
+computational verification.  Section~\ref{sec:discussion} discusses connections
+to prior work, implications, and open questions.  Section~\ref{sec:conclusion}
+concludes.

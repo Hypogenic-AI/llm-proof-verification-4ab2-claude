@@ -1,0 +1,135 @@
+\section{Discussion}\label{sec:discussion}
+
+\subsection{Connections to prior work}\label{sec:connections}
+
+Our framework unifies several threads from prior work.
+
+\paragraph{Test-time compute scaling.}
+Snell et al.~\cite{snell2024scaling} show that compute-optimal scaling
+strategies are difficulty-dependent: easy problems saturate quickly, while hard
+problems require substantially more compute.  Our results formalize this
+observation by identifying \emph{what makes a problem hard} for verification:
+proof complexity measures, particularly the composite measure~$C(F)$.
+Theorem~\ref{thm:convergence} provides a formula relating the convergence step
+to~$C(F)$, replacing the model-dependent pass@1 metric with a formula-intrinsic
+quantity.
+
+\paragraph{Verification versus solving difficulty.}
+Shi and Jin~\cite{shi2025heimdall} demonstrate that verification difficulty
+does not correlate with problem-solving difficulty.  Our framework explains this
+distinction: solving difficulty tracks search complexity (how hard it is to find
+a proof), while verification difficulty tracks proof complexity (how hard it is
+to check a given proof).  These are related but distinct quantities---a problem
+may have a short proof that is hard to find, or a long proof that is easy to
+locate but hard to verify.
+
+\paragraph{Width--size tradeoffs.}
+Ben-Sasson and Wigderson's~\cite{bensasson2001short} width--size relation
+$w(F \vdash \bot) \le w(F) + O(\sqrt{n \ln S(F)})$ parallels our finding that
+width and length jointly predict convergence better than either alone.  The
+composite measure~$C(F)$, which combines both, achieves $\rho = -0.991$, while
+individual measures achieve at most $\rho = -0.840$.
+
+\paragraph{Space and practical hardness.}
+Jarvisa\"alo et al.~\cite{jarvisalo2012relating} show that space complexity
+predicts SAT solver hardness better than length or width.  In our experiments,
+space ranks second ($\rho = -0.782$) after length ($\rho = -0.840$) in
+predicting convergence rate.  This suggests that LLM verification may weight
+these measures differently than CDCL-based solvers, a distinction that merits
+empirical investigation.
+
+\paragraph{Information-theoretic analysis.}
+Ton et al.~\cite{ton2025understanding} prove that once an LLM encounters an
+unidentifiable sub-task in a CoT chain, all subsequent steps yield zero
+information gain.  This ``information plateau'' corresponds to the convergence
+ceiling~$p_{\max}(F)$ in our model: once verification accuracy saturates, no
+additional CoT steps improve performance.  Moreover, their result strengthens
+our error accumulation bound (Theorem~\ref{thm:error-accumulation}), since
+correlated errors make the bound optimistic.
+
+\paragraph{Typed chain-of-thought.}
+Perrier~\cite{perrier2025typed} maps CoT reasoning to typed proof terms via the
+Curry--Howard correspondence, providing a formal mechanism for measuring proof
+structure in natural language reasoning.  The Minimal Path Size (MPS) metric
+introduced there is related to our proof depth measure~$d(F)$.  Combining
+Perrier's typed CoT framework with our complexity--convergence analysis could
+yield a unified theory of CoT verification for natural mathematical proofs.
+
+\subsection{Implications}\label{sec:implications}
+
+Our results suggest several practical implications.
+
+\paragraph{Compute allocation.}
+Proof complexity measures can guide the allocation of test-time compute.  Given
+a proof instance~$F$, one can compute (or estimate) $C(F)$ and use
+Theorem~\ref{thm:convergence} to predict the number of CoT steps and
+Corollary~\ref{cor:compute-tradeoff} to predict the number of self-consistency
+chains needed.  This replaces the trial-and-error approach to test-time
+compute allocation with a principled, a priori estimate.
+
+\paragraph{Selective human review.}
+Instances with $C(F) > C^*$ fall in the harder regime identified by the phase
+transition (Proposition~\ref{prop:phase-transition}).  These instances may
+benefit from human review or from structural decomposition into sub-proofs with
+lower individual complexity, rather than brute-force application of more CoT
+chains.
+
+\paragraph{Fundamental limits.}
+The exponential decay in accuracy with proof length
+(Theorem~\ref{thm:error-accumulation}) implies that step-by-step verification
+of proofs with super-polynomial length faces a fundamental barrier.  For
+formula families like pigeonhole, where any resolution proof has exponential
+length, CoT verification accuracy degrades to chance level for large instances
+(Example~\ref{ex:php-accuracy}).  Overcoming this barrier likely requires
+verification strategies that do not process each step independently, such as
+hierarchical verification or proof compression.
+
+\subsection{Limitations}\label{sec:limitations}
+
+We note several limitations of this work.
+
+First, our theoretical framework is validated through simulation rather than
+direct LLM experiments.  While the simulation is calibrated to published
+empirical data, the strong correlations obtained (particularly $\rho = -0.991$
+for the composite measure) partly reflect the parametric model construction.
+The qualitative predictions---the ordering of difficulty across families and
+the existence of saturation behavior---are more robust than the specific
+correlation magnitudes.
+
+Second, the step-independence assumption in
+Theorem~\ref{thm:error-accumulation} is a simplification.  Real CoT traces
+exhibit sequential dependencies, and the information-theoretic analysis of Ton
+et al.~\cite{ton2025understanding} suggests that errors propagate in a
+correlated fashion.
+
+Third, our complexity measures are defined for propositional resolution proofs.
+Extending these to first-order logic or to natural language mathematical proofs
+requires additional formalization, such as the typed CoT framework of
+Perrier~\cite{perrier2025typed}.
+
+Fourth, the convergence rate model~\eqref{eq:lambda-model} uses fixed weights
+$w_i$ calibrated to aggregate statistics.  These weights may vary across model
+architectures and scales.
+
+\subsection{Open questions}\label{sec:open}
+
+We conclude this section with several open questions.
+
+\begin{conjecture}\label{conj:empirical}
+For at least one family among Tseitin, pigeonhole, and pebbling formulas, the
+Spearman rank correlation between $C(F)$ and the empirical convergence rate of
+GPT-4 or Claude verification exceeds $-0.8$ in absolute value.
+\end{conjecture}
+
+\begin{conjecture}\label{conj:space}
+For CoT verification by LLMs with bounded context windows, proof space
+$\operatorname{Sp}(F)$ is a stronger predictor of verification difficulty than
+proof length~$S(F)$.
+\end{conjecture}
+
+\begin{conjecture}\label{conj:sharp}
+In the limit of large formula size~$n$ for random $k$-CNF at the
+satisfiability threshold, the phase transition in verification accuracy at
+$C^*$ becomes sharp (i.e., the accuracy function is discontinuous in the
+limit).
+\end{conjecture}
